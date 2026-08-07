@@ -46,7 +46,11 @@ jobs:
       - name: Install Android NDK + SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: ndk;cmake;build-tools;platform-tools
+          packages: |
+            ndk
+            cmake
+            build-tools;34.0.0
+            platform-tools
           accept-android-sdk-licenses: true
       
       - name: Configure Android NDK environment
