@@ -46,27 +46,43 @@ jobs:
           
       - name: Build attrs wheel
         run: |
-          pip wheel attrs==25.3.0 -w /tmp/wheels --verbose || true
+          pip wheel attrs -w /tmp/wheels --verbose || true
           
       - name: Build markupsafe wheel
         run: |
-          pip wheel markupsafe==3.2.1 -w /tmp/wheels --verbose || true
+          pip wheel markupsafe -w /tmp/wheels --verbose || true
           
       - name: Build jiter wheel (Rust)
         run: |
           pip wheel jiter==0.10.0 -w /tmp/wheels --verbose || true
 
-      - name: Build hermes-agent wheel (pure Python, uses above deps)
+      - name: Install hermes-agent using pre-built wheels
         run: |
-          pip wheel . -w /tmp/wheels --no-deps --verbose
+          # Install all built wheels first
+          pip install /tmp/wheels/*.whl
+          
+          # Now install hermes-agent from source (it will use the pre-built deps)
+          pip install -e . --verbose
 
-      - name: List built wheels
+      - name: Verify installation works
         run: |
-          ls -lah /tmp/wheels/
+          python -c "import hermes; print('hermes imported OK')"
+          hermes --version
+
+      - name: Build final wheels for all installed packages
+        run: |
+          # Rebuild wheels for everything now that it works
+          mkdir -p /tmp/final_wheels
+          pip wheel --wheel-dir /tmp/final_wheels .
+          pip wheel --wheel-dir /tmp/final_wheels pydantic-core==2.48.0 maturin==1.14.1 cryptography==48.0.1 attrs markupsafe jiter==0.10.0
+
+      - name: List final wheels
+        run: |
+          ls -lah /tmp/final_wheels/
 
       - name: Upload wheels artifact
         uses: actions/upload-artifact@v4
         with:
           name: hermes-arm64-wheels
-          path: /tmp/wheels/*.whl
+          path: /tmp/final_wheels/*.whl
           retention-days: 30
