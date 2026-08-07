@@ -1,0 +1,132 @@
+name: Build Android ARM64 Wheels for Termux
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: "Python version"
+        required: false
+        default: "3.14"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build-android-wheels:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    
+    env:
+      ANDROID_API: 24
+      ANDROID_NDK_VERSION: r27c
+      TARGET: aarch64-linux-android
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-user-static \
+            binfmt-support \
+            clang \
+            lld \
+            llvm \
+            pkg-config \
+            libssl-dev \
+            cmake \
+            protobuf-compiler \
+            2>/dev/null || true
+      
+      - name: Install Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+          components: rust-src
+      
+      - name: Install cargo-zigbuild
+        run: |
+          cargo install cargo-zigbuild --locked
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          architecture: arm64
+      
+      - name: Install Python build deps
+        run: |
+          python -m pip install --upgrade pip setuptools wheel maturin build
+          pip install auditwheel patchelf
+      
+      - name: Build pydantic-core wheel
+        run: |
+          mkdir -p ${{ github.workspace }}/wheels
+          cd /tmp
+          git clone --depth 1 --branch 2.48.0 https://github.com/pydantic/pydantic-core.git
+          cd pydantic-core
+          cargo zigbuild --target ${{ env.TARGET }} --release -p pydantic_core
+          maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
+      
+      - name: Build jiter wheel
+        run: |
+          cd /tmp
+          git clone --depth 1 --branch v0.10.0 https://github.com/arsen-m/jiter.git
+          cd jiter
+          cargo zigbuild --target ${{ env.TARGET }} --release
+          maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
+      
+      - name: Build uvloop wheel
+        run: |
+          cd /tmp
+          git clone --depth 1 --branch v0.22.1 https://github.com/MagicStack/uvloop.git
+          cd uvloop
+          cargo zigbuild --target ${{ env.TARGET }} --release
+          maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
+      
+      - name: Build cryptography wheel
+        run: |
+          cd /tmp
+          git clone --depth 1 --branch 48.0.1 https://github.com/pyca/cryptography.git
+          cd cryptography
+          cargo zigbuild --target ${{ env.TARGET }} --release -p cryptography
+          maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
+      
+      - name: Build maturin wheel
+        run: |
+          pip wheel maturin==1.14.1 -w ${{ github.workspace }}/wheels --no-deps
+      
+      - name: Build pep508-rs wheel
+        run: |
+          cd /tmp
+          git clone --depth 1 https://github.com/pypa/pep508-rs.git
+          cd pep508-rs
+          cargo zigbuild --target ${{ env.TARGET }} --release
+          maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
+      
+      - name: Verify wheel tags
+        run: |
+          ls -la ${{ github.workspace }}/wheels/
+          for whl in ${{ github.workspace }}/wheels/*.whl; do
+            echo "=== $whl ==="
+            unzip -l "$whl" | head -20
+          done
+      
+      - name: Upload Android wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-android-wheels-cp314
+          path: ${{ github.workspace }}/wheels/*.whl
+          retention-days: 30
+          compression-level: 6
