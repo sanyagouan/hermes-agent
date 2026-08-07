@@ -19,7 +19,7 @@ jobs:
     
     env:
       ANDROID_API: 24
-      ANDROID_NDK_VERSION: r27c
+      ANDROID_NDK_VERSION: 27.2.12479018
       TARGET: aarch64-linux-android
     
     steps:
