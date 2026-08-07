@@ -1,0 +1,60 @@
+name: Build ARM64 Wheels for Termux
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version (cp314 = 3.14)'
+        required: false
+        default: '3.14'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install build tools
+        run: |
+          pip install --upgrade pip setuptools wheel maturin
+          pip install build auditwheel patchelf
+
+      - name: Build all wheels (hermes-agent + deps)
+        run: |
+          mkdir -p /tmp/wheels
+          
+          # Build hermes-agent itself
+          pip wheel . -w /tmp/wheels --no-deps
+          
+          # Build problematic Rust deps that don't have cp314 ARM64 wheels
+          # pydantic-core (Rust, compiled by maturin)
+          pip wheel pydantic-core==2.48.0 -w /tmp/wheels
+          
+          # maturin itself (Rust)
+          pip wheel maturin==1.14.1 -w /tmp/wheels
+          
+          # cryptography (Rust, but may have wheel)
+          pip wheel cryptography==48.0.1 -w /tmp/wheels
+          
+          # Other Rust deps that may not have cp314 wheels
+          pip wheel attrs==25.3.0 -w /tmp/wheels || true
+          pip wheel markupsafe==3.2.1 -w /tmp/wheels || true
+          pip wheel jiter==0.10.0 -w /tmp/wheels || true
+
+      - name: List built wheels
+        run: |
+          ls -lah /tmp/wheels/
+
+      - name: Upload wheels artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-arm64-wheels
+          path: /tmp/wheels/*.whl
+          retention-days: 30
