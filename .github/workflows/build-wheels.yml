@@ -56,26 +56,19 @@ jobs:
         run: |
           pip wheel jiter==0.10.0 -w /tmp/wheels --verbose || true
 
-      - name: Install hermes-agent using pre-built wheels
+      - name: Test install with pre-built wheels
         run: |
           pip install /tmp/wheels/*.whl
           pip install -e . --verbose
+          hermes --version
 
-      - name: Build final wheels for all installed packages (including hermes-agent)
+      - name: List built wheels (dependencies only - hermes-agent is installed from source)
         run: |
-          mkdir -p /tmp/final_wheels
-          # Build wheel for hermes-agent (non-editable this time)
-          pip wheel --wheel-dir /tmp/final_wheels . --no-deps
-          # Build wheels for all deps
-          pip wheel --wheel-dir /tmp/final_wheels pydantic-core==2.48.0 maturin==1.14.1 cryptography==48.0.1 attrs markupsafe jiter==0.10.0
+          ls -lah /tmp/wheels/
 
-      - name: List final wheels
-        run: |
-          ls -lah /tmp/final_wheels/
-
-      - name: Upload wheels artifact
+      - name: Upload wheels artifact (Rust deps only)
         uses: actions/upload-artifact@v4
         with:
-          name: hermes-arm64-wheels
-          path: /tmp/final_wheels/*.whl
+          name: hermes-arm64-rust-deps-wheels
+          path: /tmp/wheels/*.whl
           retention-days: 30
