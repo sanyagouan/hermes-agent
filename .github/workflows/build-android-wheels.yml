@@ -43,10 +43,32 @@ jobs:
             protobuf-compiler \
             2>/dev/null || true
       
-      - name: Install Android NDK
+      - name: Install Android NDK + SDK
         uses: android-actions/setup-android@v3
         with:
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          packages: ndk;cmake;build-tools;platform-tools
+          accept-android-sdk-licenses: true
+      
+      - name: Configure Android NDK environment
+        run: |
+          # Find NDK path
+          NDK_PATH=$(find /home/runner/.android/sdk/ndk -maxdepth 1 -mindepth 1 -type d | head -1)
+          if [ -z "$NDK_PATH" ]; then
+            echo "ERROR: NDK not found"
+            exit 1
+          fi
+          echo "NDK found at: $NDK_PATH"
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
+          
+          # Configure toolchain
+          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64"
+          echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
+          echo "CC=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang" >> $GITHUB_ENV
+          echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang++" >> $GITHUB_ENV
+          echo "AR=$TOOLCHAIN/bin/llvm-ar" >> $GITHUB_ENV
+          echo "RANLIB=$TOOLCHAIN/bin/llvm-ranlib" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang" >> $GITHUB_ENV
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
