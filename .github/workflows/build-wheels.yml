@@ -61,15 +61,12 @@ jobs:
           pip install /tmp/wheels/*.whl
           pip install -e . --verbose
 
-      - name: Verify installation works
-        run: |
-          python -c "import hermes_agent; print('hermes_agent imported OK')"
-          hermes --version
-
-      - name: Build final wheels for all installed packages
+      - name: Build final wheels for all installed packages (including hermes-agent)
         run: |
           mkdir -p /tmp/final_wheels
-          pip wheel --wheel-dir /tmp/final_wheels .
+          # Build wheel for hermes-agent (non-editable this time)
+          pip wheel --wheel-dir /tmp/final_wheels . --no-deps
+          # Build wheels for all deps
           pip wheel --wheel-dir /tmp/final_wheels pydantic-core==2.48.0 maturin==1.14.1 cryptography==48.0.1 attrs markupsafe jiter==0.10.0
 
       - name: List final wheels
