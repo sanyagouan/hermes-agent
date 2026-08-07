@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,30 +31,34 @@ jobs:
           pip install --upgrade pip setuptools wheel maturin
           pip install build auditwheel patchelf
 
-      - name: Build hermes-agent with maturin
+      - name: Build pydantic-core wheel (Rust via maturin)
         run: |
           mkdir -p /tmp/wheels
+          pip wheel pydantic-core==2.48.0 -w /tmp/wheels --verbose
           
-          # hermes-agent uses maturin for Rust extensions
-          maturin build --release --out /tmp/wheels
-          
-      - name: Build pydantic-core wheel
+      - name: Build maturin wheel (Rust)
         run: |
-          pip wheel pydantic-core==2.48.0 -w /tmp/wheels
+          pip wheel maturin==1.14.1 -w /tmp/wheels --verbose
           
-      - name: Build maturin wheel
+      - name: Build cryptography wheel (Rust)
         run: |
-          pip wheel maturin==1.14.1 -w /tmp/wheels
+          pip wheel cryptography==48.0.1 -w /tmp/wheels --verbose
           
-      - name: Build cryptography wheel
+      - name: Build attrs wheel
         run: |
-          pip wheel cryptography==48.0.1 -w /tmp/wheels
+          pip wheel attrs==25.3.0 -w /tmp/wheels --verbose || true
           
-      - name: Build other Rust deps
+      - name: Build markupsafe wheel
         run: |
-          pip wheel attrs==25.3.0 -w /tmp/wheels || true
-          pip wheel markupsafe==3.2.1 -w /tmp/wheels || true
-          pip wheel jiter==0.10.0 -w /tmp/wheels || true
+          pip wheel markupsafe==3.2.1 -w /tmp/wheels --verbose || true
+          
+      - name: Build jiter wheel (Rust)
+        run: |
+          pip wheel jiter==0.10.0 -w /tmp/wheels --verbose || true
+
+      - name: Build hermes-agent wheel (pure Python, uses above deps)
+        run: |
+          pip wheel . -w /tmp/wheels --no-deps --verbose
 
       - name: List built wheels
         run: |
