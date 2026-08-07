@@ -14,11 +14,12 @@ permissions:
 
 jobs:
   build-android-wheels:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04  # x86_64 runner - Android NDK x86_64 runs natively
     timeout-minutes: 180
     
     env:
       ANDROID_API: 24
+      ANDROID_NDK_VERSION: 27.2.12479018
       TARGET: aarch64-linux-android
       PYDANTIC_CORE_VERSION: v2.41.5
       JITER_VERSION: v0.16.0
@@ -46,20 +47,27 @@ jobs:
             protobuf-compiler \
             2>/dev/null || true
       
-      - name: Install Android NDK ARM64 host (direct download)
+      - name: Install Android SDK + NDK (x86_64 host, direct)
         run: |
-          # Download NDK for ARM64 Linux host (NOT x86_64 via sdkmanager)
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux-arm64.zip
-          unzip -q android-ndk-r27c-linux-arm64.zip
-          NDK_PATH=/tmp/android-ndk-r27c
+          # Install Android SDK cmdline-tools
+          ANDROID_SDK_ROOT=/home/runner/.android/sdk
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          cd "$ANDROID_SDK_ROOT/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
+          unzip -q commandlinetools-linux-12266719_latest.zip
+          mv cmdline-tools latest
+          rm commandlinetools-linux-12266719_latest.zip
           
-          echo "NDK found at: $NDK_PATH"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1" "build-tools;34.0.0" "platform-tools" "platforms;android-${ANDROID_API}"
+          
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/${ANDROID_NDK_VERSION}"
           echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
           
           # Configure toolchain
-          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-arm64"
+          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64"
           echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
           echo "CC=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang" >> $GITHUB_ENV
           echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang++" >> $GITHUB_ENV
@@ -87,7 +95,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-          architecture: arm64
       
       - name: Install Python build deps
         run: |
