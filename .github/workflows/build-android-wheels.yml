@@ -15,12 +15,18 @@ permissions:
 jobs:
   build-android-wheels:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 180
     
     env:
       ANDROID_API: 24
       ANDROID_NDK_VERSION: 27.2.12479018
       TARGET: aarch64-linux-android
+      PYDANTIC_CORE_VERSION: v2.41.5
+      JITER_VERSION: v0.16.0
+      UVLOOP_VERSION: v0.22.1
+      CRYPTOGRAPHY_VERSION: 50.0.0
+      MATURIN_VERSION: v1.14.1
+      PEP508_RS_VERSION: v0.9.2
     
     steps:
       - name: Checkout repository
@@ -93,6 +99,11 @@ jobs:
           targets: ${{ env.TARGET }}
           components: rust-src
       
+      - name: Install Zig (required by cargo-zigbuild)
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.14.0
+      
       - name: Install cargo-zigbuild
         run: |
           cargo install cargo-zigbuild --locked
@@ -113,7 +124,7 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/wheels
           cd /tmp
-          git clone --depth 1 --branch v2.48.0 https://github.com/pydantic/pydantic-core.git
+          git clone --depth 1 --branch ${{ env.PYDANTIC_CORE_VERSION }} https://github.com/pydantic/pydantic-core.git
           cd pydantic-core
           cargo zigbuild --target ${{ env.TARGET }} --release -p pydantic_core
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
@@ -121,7 +132,7 @@ jobs:
       - name: Build jiter wheel
         run: |
           cd /tmp
-          git clone --depth 1 --branch v0.10.0 https://github.com/arsen-m/jiter.git
+          git clone --depth 1 --branch ${{ env.JITER_VERSION }} https://github.com/pydantic/jiter.git
           cd jiter
           cargo zigbuild --target ${{ env.TARGET }} --release
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
@@ -129,7 +140,7 @@ jobs:
       - name: Build uvloop wheel
         run: |
           cd /tmp
-          git clone --depth 1 --branch v0.22.1 https://github.com/MagicStack/uvloop.git
+          git clone --depth 1 --branch ${{ env.UVLOOP_VERSION }} https://github.com/MagicStack/uvloop.git
           cd uvloop
           cargo zigbuild --target ${{ env.TARGET }} --release
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
@@ -137,7 +148,7 @@ jobs:
       - name: Build cryptography wheel
         run: |
           cd /tmp
-          git clone --depth 1 --branch 48.0.1 https://github.com/pyca/cryptography.git
+          git clone --depth 1 --branch ${{ env.CRYPTOGRAPHY_VERSION }} https://github.com/pyca/cryptography.git
           cd cryptography
           cargo zigbuild --target ${{ env.TARGET }} --release -p cryptography
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
@@ -146,11 +157,11 @@ jobs:
         run: |
           pip wheel maturin==1.14.1 -w ${{ github.workspace }}/wheels --no-deps
       
-      - name: Build pep508-rs wheel
+      - name: Build pep508_rs wheel
         run: |
           cd /tmp
-          git clone --depth 1 https://github.com/pypa/pep508-rs.git
-          cd pep508-rs
+          git clone --depth 1 --branch ${{ env.PEP508_RS_VERSION }} https://github.com/konstin/pep508_rs.git
+          cd pep508_rs
           cargo zigbuild --target ${{ env.TARGET }} --release
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
       
