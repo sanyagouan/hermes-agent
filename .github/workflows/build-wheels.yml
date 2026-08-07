@@ -58,20 +58,16 @@ jobs:
 
       - name: Install hermes-agent using pre-built wheels
         run: |
-          # Install all built wheels first
           pip install /tmp/wheels/*.whl
-          
-          # Now install hermes-agent from source (it will use the pre-built deps)
           pip install -e . --verbose
 
       - name: Verify installation works
         run: |
-          python -c "import hermes; print('hermes imported OK')"
+          python -c "import hermes_agent; print('hermes_agent imported OK')"
           hermes --version
 
       - name: Build final wheels for all installed packages
         run: |
-          # Rebuild wheels for everything now that it works
           mkdir -p /tmp/final_wheels
           pip wheel --wheel-dir /tmp/final_wheels .
           pip wheel --wheel-dir /tmp/final_wheels pydantic-core==2.48.0 maturin==1.14.1 cryptography==48.0.1 attrs markupsafe jiter==0.10.0
