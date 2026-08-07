@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,29 +21,37 @@ jobs:
         with:
           python-version: '3.14'
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
       - name: Install build tools
         run: |
           pip install --upgrade pip setuptools wheel maturin
           pip install build auditwheel patchelf
 
-      - name: Build all wheels (hermes-agent + deps)
+      - name: Build hermes-agent with maturin
         run: |
           mkdir -p /tmp/wheels
           
-          # Build hermes-agent itself
-          pip wheel . -w /tmp/wheels --no-deps
+          # hermes-agent uses maturin for Rust extensions
+          maturin build --release --out /tmp/wheels
           
-          # Build problematic Rust deps that don't have cp314 ARM64 wheels
-          # pydantic-core (Rust, compiled by maturin)
+      - name: Build pydantic-core wheel
+        run: |
           pip wheel pydantic-core==2.48.0 -w /tmp/wheels
           
-          # maturin itself (Rust)
+      - name: Build maturin wheel
+        run: |
           pip wheel maturin==1.14.1 -w /tmp/wheels
           
-          # cryptography (Rust, but may have wheel)
+      - name: Build cryptography wheel
+        run: |
           pip wheel cryptography==48.0.1 -w /tmp/wheels
           
-          # Other Rust deps that may not have cp314 wheels
+      - name: Build other Rust deps
+        run: |
           pip wheel attrs==25.3.0 -w /tmp/wheels || true
           pip wheel markupsafe==3.2.1 -w /tmp/wheels || true
           pip wheel jiter==0.10.0 -w /tmp/wheels || true
