@@ -113,7 +113,7 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/wheels
           cd /tmp
-          git clone --depth 1 --branch 2.48.0 https://github.com/pydantic/pydantic-core.git
+          git clone --depth 1 --branch v2.48.0 https://github.com/pydantic/pydantic-core.git
           cd pydantic-core
           cargo zigbuild --target ${{ env.TARGET }} --release -p pydantic_core
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
