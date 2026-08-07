@@ -19,7 +19,6 @@ jobs:
     
     env:
       ANDROID_API: 24
-      ANDROID_NDK_VERSION: 27.2.12479018
       TARGET: aarch64-linux-android
       PYDANTIC_CORE_VERSION: v2.41.5
       JITER_VERSION: v0.16.0
@@ -38,8 +37,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            qemu-user-static \
-            binfmt-support \
             clang \
             lld \
             llvm \
@@ -49,43 +46,20 @@ jobs:
             protobuf-compiler \
             2>/dev/null || true
       
-      - name: Install Android SDK + NDK (direct with full paths)
+      - name: Install Android NDK ARM64 host (direct download)
         run: |
-          # Install Android SDK cmdline-tools
-          ANDROID_SDK_ROOT=/home/runner/.android/sdk
-          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
-          cd "$ANDROID_SDK_ROOT/cmdline-tools"
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip
-          unzip -q commandlinetools-linux-12266719_latest.zip
-          mv cmdline-tools latest
-          rm commandlinetools-linux-12266719_latest.zip
+          # Download NDK for ARM64 Linux host (NOT x86_64 via sdkmanager)
+          cd /tmp
+          wget -q https://dl.google.com/android/repository/android-ndk-r27c-linux-arm64.zip
+          unzip -q android-ndk-r27c-linux-arm64.zip
+          NDK_PATH=/tmp/android-ndk-r27c
           
-          # Use FULL PATH to sdkmanager (not relying on PATH update)
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          
-          # Accept licenses and install packages using full path
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" "ndk;${ANDROID_NDK_VERSION}" "cmake;3.22.1" "build-tools;34.0.0" "platform-tools" "platforms;android-${ANDROID_API}"
-          
-          # Add to PATH for subsequent steps
-          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_SDK_ROOT/platform-tools" >> $GITHUB_PATH
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-      
-      - name: Configure Android NDK environment
-        run: |
-          # Find NDK path
-          NDK_PATH=$(find /home/runner/.android/sdk/ndk -maxdepth 1 -mindepth 1 -type d | head -1)
-          if [ -z "$NDK_PATH" ]; then
-            echo "ERROR: NDK not found"
-            exit 1
-          fi
           echo "NDK found at: $NDK_PATH"
           echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
           
           # Configure toolchain
-          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64"
+          TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-arm64"
           echo "TOOLCHAIN=$TOOLCHAIN" >> $GITHUB_ENV
           echo "CC=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang" >> $GITHUB_ENV
           echo "CXX=$TOOLCHAIN/bin/aarch64-linux-android${ANDROID_API}-clang++" >> $GITHUB_ENV
