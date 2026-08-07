@@ -126,7 +126,7 @@ jobs:
           cd /tmp
           git clone --depth 1 --branch ${{ env.PYDANTIC_CORE_VERSION }} https://github.com/pydantic/pydantic-core.git
           cd pydantic-core
-          cargo zigbuild --target ${{ env.TARGET }} --release -p pydantic_core
+          cargo zigbuild --target ${{ env.TARGET }} --release -p pydantic-core
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
       
       - name: Build jiter wheel
@@ -150,7 +150,7 @@ jobs:
           cd /tmp
           git clone --depth 1 --branch ${{ env.CRYPTOGRAPHY_VERSION }} https://github.com/pyca/cryptography.git
           cd cryptography
-          cargo zigbuild --target ${{ env.TARGET }} --release -p cryptography
+          cargo zigbuild --target ${{ env.TARGET }} --release -p cryptography-cffi -p cryptography-openssl
           maturin build --release --target ${{ env.TARGET }} --out ${{ github.workspace }}/wheels
       
       - name: Build maturin wheel
